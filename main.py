@@ -56,6 +56,69 @@ def sort_year_name_counts(
     return result
 
 
+def sort_name_year_counts(
+    name_year_counts: dict[str, dict[int, int]],
+) -> dict[str, dict[int, int]]:
+    result = {}
+    for name, year_counts in name_year_counts.items():
+        year_start = min(year_counts.keys())
+        year_end = max(year_counts.keys()) + 1
+        result[name] = collections.OrderedDict(
+            (year, year_counts[year]) for year in range(year_start, year_end)
+        )
+    return result
+
+
+
+def plot_trends_for_name(
+    name: str,
+    year_name_counts: dict[int, dict[str, int]],
+    name_year_counts: dict[str, dict[int, int]],
+):
+
+    # Check name
+    name = name.lower()
+    if name not in name_year_counts:
+        raise RuntimeError(f"Could not find {name} in data")
+
+    # Year bounds
+    year_min = min(name_year_counts[name].keys())
+    year_max = max(name_year_counts[name].keys())
+
+    # Compute trends
+    counts = name_year_counts[name]
+    count_fractions = collections.OrderedDict()
+    ranks = collections.OrderedDict()
+    for year, count in counts.items():
+        if count == 0:
+            count_fractions[year] = 0
+        else:
+            count_fractions[year] = count / sum(year_name_counts[year].values())
+            ranks[year] = next(
+                idx for idx, n in enumerate(year_name_counts[year].keys())
+                if n == name
+            )
+
+    # Plot
+    fig, (ax1, ax2, ax3) = plt.subplots(3, 1)
+    fig.suptitle(name)
+    ax1.plot(list(counts.keys()), list(counts.values()))
+    ax1.set_title("Total count")
+    ax1.set(xlabel="Year", ylabel="Count")
+    ax1.set_xlim(year_min, year_max)
+    ax1.set_yscale("log")
+    ax2.plot(list(count_fractions.keys()), list(count_fractions.values()))
+    ax2.set_title("Fraction")
+    ax2.set(xlabel="Year", ylabel="Fraction")
+    ax2.set_xlim(year_min, year_max)
+    ax2.set_yscale("log")
+    ax3.plot(list(ranks.keys()), list(ranks.values()))
+    ax2.set_title("Rank")
+    ax3.set(xlabel="Year", ylabel="Rank")
+    ax3.set_xlim(year_min, year_max)
+    ax3.yaxis.set_inverted(True)
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("--name", default=None)
@@ -87,6 +150,7 @@ def main() -> None:
 
     # Postprocess data
     year_name_counts = sort_year_name_counts(year_name_counts)
+    name_year_counts = sort_name_year_counts(name_year_counts)
     year_total_counts = {
         year: sum(name_counts.values())
         for year, name_counts in year_name_counts.items()
@@ -94,40 +158,7 @@ def main() -> None:
 
     # Plot trends for a name
     if args.name is not None:
-        name = args.name.lower()
-        if name not in name_year_counts:
-            raise RuntimeError(f"Could not find {name} in data")
-
-        # Compute trends
-        counts = {}
-        count_fractions = {}
-        ranks = {}
-        year_counts = name_year_counts[name]
-        for year, total_count in year_total_counts.items():
-            if year not in year_counts:
-                continue
-            counts[year] = year_counts[year]
-            count_fractions[year] = year_counts[year] / total_count
-            ranks[year] = next(
-                idx for idx, n in enumerate(year_name_counts[year].keys())
-                if n == name
-            )
-
-        # Plot
-        fig, (ax1, ax2, ax3) = plt.subplots(3, 1)
-        fig.suptitle(name)
-        ax1.plot(list(counts.keys()), list(counts.values()))
-        ax1.set_title("Total count")
-        ax1.set(xlabel="Year", ylabel="Count")
-        ax1.set_yscale("log")
-        ax2.plot(list(count_fractions.keys()), list(count_fractions.values()))
-        ax2.set_title("Fraction")
-        ax2.set(xlabel="Year", ylabel="Fraction")
-        ax2.set_yscale("log")
-        ax3.plot(list(ranks.keys()), list(ranks.values()))
-        ax2.set_title("Rank")
-        ax3.set(xlabel="Year", ylabel="Rank")
-        ax3.yaxis.set_inverted(True)
+        plot_trends_for_name(args.name, year_name_counts, name_year_counts)
         plt.show()
 
 
