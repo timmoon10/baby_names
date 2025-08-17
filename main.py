@@ -29,7 +29,7 @@ def load_state_data_(
     year_name_counts: dict[int, dict[str, int]],
     name_year_counts: dict[str, dict[int, int]],
 ) -> None:
-    data_file = root_dir() / "namesbystate" / f"{state}.TXT"
+    data_file = root_dir() / "data" / "namesbystate" / f"{state}.TXT"
     with open(data_file, mode="r") as f:
         for row in csv.reader(f):
             if row[1] != gender:
@@ -114,7 +114,7 @@ def main() -> None:
             )
 
         # Plot
-        fig, (ax1, ax2, ax3) = plt.subplots(1, 3)
+        fig, (ax1, ax2, ax3) = plt.subplots(3, 1)
         fig.suptitle(name)
         ax1.plot(list(counts.keys()), list(counts.values()))
         ax1.set_title("Total count")
@@ -127,6 +127,7 @@ def main() -> None:
         ax3.plot(list(ranks.keys()), list(ranks.values()))
         ax2.set_title("Rank")
         ax3.set(xlabel="Year", ylabel="Rank")
+        ax3.yaxis.set_inverted(True)
         plt.show()
 
 
