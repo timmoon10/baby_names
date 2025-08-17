@@ -51,7 +51,7 @@ def sort_year_name_counts(
     result = collections.OrderedDict()
     for year in range(year_start, year_end):
         items = [(count, name) for name, count in year_name_counts[year].items()]
-        items.sort(reverse=False)
+        items.sort(reverse=True)
         result[year] = collections.OrderedDict((name, count) for count, name in items)
     return result
 
@@ -92,11 +92,13 @@ def main() -> None:
         for year, name_counts in year_name_counts.items()
     }
 
+    # Plot trends for a name
     if args.name is not None:
         name = args.name.lower()
         if name not in name_year_counts:
             raise RuntimeError(f"Could not find {name} in data")
 
+        # Compute trends
         counts = {}
         count_fractions = {}
         ranks = {}
@@ -109,12 +111,22 @@ def main() -> None:
             ranks[year] = next(
                 idx for idx, n in enumerate(year_name_counts[year].keys())
                 if n == name
-            )  ### TODO Fix
+            )
 
         # Plot
-        fig, ax = plt.subplots()
-        line, = ax.plot(list(count_fractions.keys()), list(count_fractions.values()))
-        ax.set(xlabel="Year", ylabel="Count")
+        fig, (ax1, ax2, ax3) = plt.subplots(1, 3)
+        fig.suptitle(name)
+        ax1.plot(list(counts.keys()), list(counts.values()))
+        ax1.set_title("Total count")
+        ax1.set(xlabel="Year", ylabel="Count")
+        ax1.set_yscale("log")
+        ax2.plot(list(count_fractions.keys()), list(count_fractions.values()))
+        ax2.set_title("Fraction")
+        ax2.set(xlabel="Year", ylabel="Fraction")
+        ax2.set_yscale("log")
+        ax3.plot(list(ranks.keys()), list(ranks.values()))
+        ax2.set_title("Rank")
+        ax3.set(xlabel="Year", ylabel="Rank")
         plt.show()
 
 
