@@ -74,6 +74,7 @@ def plot_trends_for_name(
     name: str,
     year_name_counts: dict[int, dict[str, int]],
     name_year_counts: dict[str, dict[int, int]],
+    year_total_counts: dict[int, int],
 ):
 
     # Check name
@@ -87,35 +88,43 @@ def plot_trends_for_name(
 
     # Compute trends
     counts = name_year_counts[name]
-    count_fractions = collections.OrderedDict()
+    count_fractions = collections.OrderedDict(
+        (year, count / year_total_counts[year])
+        for year, count in counts.items()
+    )
     ranks = collections.OrderedDict()
-    for year, count in counts.items():
-        if count == 0:
-            count_fractions[year] = 0
-        else:
-            count_fractions[year] = count / sum(year_name_counts[year].values())
+    for year in range(year_min, year_max+1):
+        if counts[year] > 0:
             ranks[year] = next(
                 idx for idx, n in enumerate(year_name_counts[year].keys())
                 if n == name
             )
+
+    # Print statistics
+    print(f"{year_max} statistics for {name}")
+    print(f"Total count: {counts[year_max]}")
+    print(f"Fraction: {count_fractions[year_max]}")
+    if year_max in ranks:
+        print(f"Rank: {ranks[year_max]}")
 
     # Plot
     fig, (ax1, ax2, ax3) = plt.subplots(3, 1)
     fig.suptitle(name)
     ax1.plot(list(counts.keys()), list(counts.values()))
     ax1.set_title("Total count")
-    ax1.set(xlabel="Year", ylabel="Count")
+    ax1.set(ylabel="Count")
     ax1.set_xlim(year_min, year_max)
     ax1.set_yscale("log")
     ax2.plot(list(count_fractions.keys()), list(count_fractions.values()))
     ax2.set_title("Fraction")
-    ax2.set(xlabel="Year", ylabel="Fraction")
+    ax2.set(ylabel="Fraction")
     ax2.set_xlim(year_min, year_max)
     ax2.set_yscale("log")
     ax3.plot(list(ranks.keys()), list(ranks.values()))
-    ax2.set_title("Rank")
-    ax3.set(xlabel="Year", ylabel="Rank")
+    ax3.set_title("Rank")
+    ax3.set(ylabel="Rank")
     ax3.set_xlim(year_min, year_max)
+    ax3.set_yscale("log")
     ax3.yaxis.set_inverted(True)
 
 
@@ -158,7 +167,7 @@ def main() -> None:
 
     # Plot trends for a name
     if args.name is not None:
-        plot_trends_for_name(args.name, year_name_counts, name_year_counts)
+        plot_trends_for_name(args.name, year_name_counts, name_year_counts, year_total_counts)
         plt.show()
 
 
