@@ -46,10 +46,10 @@ def load_state_data_(
 def sort_year_name_counts(
     year_name_counts: dict[int, dict[str, int]],
 ) -> dict[int, dict[str, int]]:
-    year_start = min(year_name_counts.keys())
-    year_end = max(year_name_counts.keys()) + 1
+    year_min = min(year_name_counts.keys())
+    year_max = max(year_name_counts.keys())
     result = collections.OrderedDict()
-    for year in range(year_start, year_end):
+    for year in range(year_min, year_max+1):
         items = [(count, name) for name, count in year_name_counts[year].items()]
         items.sort(reverse=True)
         result[year] = collections.OrderedDict((name, count) for count, name in items)
@@ -61,10 +61,10 @@ def sort_name_year_counts(
 ) -> dict[str, dict[int, int]]:
     result = {}
     for name, year_counts in name_year_counts.items():
-        year_start = min(year_counts.keys())
-        year_end = max(year_counts.keys()) + 1
+        year_min = min(year_counts.keys())
+        year_max = max(year_counts.keys())
         result[name] = collections.OrderedDict(
-            (year, year_counts[year]) for year in range(year_start, year_end)
+            (year, year_counts[year]) for year in range(year_min, year_max+1)
         )
     return result
 
@@ -113,7 +113,7 @@ def plot_trends_for_name(
     ax1.set(ylabel="Count")
     ax1.set_xlim(year_min, year_max)
     ax1.set_yscale("log")
-    ax2.plot(list(count_fractions.keys()), list(count_fractions.values()))
+    ax2.plot(list(frequencies.keys()), list(frequencies.values()))
     ax2.set_title("Frequency")
     ax2.set(ylabel="Frequency")
     ax2.set_xlim(year_min, year_max)
@@ -131,7 +131,7 @@ def show_top_names(
     year: int,
     year_name_counts: dict[int, dict[str, int]],
     year_total_counts: dict[int, int],
-):
+) -> None:
     print("Name frequencies")
     print("----------------")
     total_count = year_total_counts[year]
@@ -145,12 +145,12 @@ def show_top_names(
 def is_name_frequency_above_threshold(
     name,
     min_frequency: float,
-    year_start: int,
-    year_end: int,
+    year_min: int,
+    year_max: int,
     year_name_counts: dict[int, dict[str, int]],
     year_total_counts: dict[int, int],
 ) -> bool:
-    for year in range(year_start, year_end):
+    for year in range(year_min, year_max+1):
         name_counts = year_name_counts[year]
         if name not in name_counts:
             return False
@@ -159,12 +159,104 @@ def is_name_frequency_above_threshold(
     return True
 
 
+def is_name_frequency_falling(
+    name,
+    year_min: int,
+    year_max: int,
+    year_name_counts: dict[int, dict[str, int]],
+    year_total_counts: dict[int, int],
+    tolerance: float = 0.25,
+) -> bool:
+    year_mid = year_min + (year_max - year_min + 2) // 2
+    name_count1 = 0
+    name_count2 = 0
+    total_count1 = 0
+    total_count2 = 0
+    for year in range(year_min, year_mid):
+        name_count1 += year_name_counts[year][name]
+        total_count1 += year_total_counts[year]
+    for year in range(year_mid, year_max+1):
+        name_count2 += year_name_counts[year][name]
+        total_count2 += year_total_counts[year]
+    frequency1 = name_count1 / total_count1
+    frequency2 = name_count2 / total_count2
+    return frequency1 > (1 + tolerance) * frequency2
+
+
+def show_filtered_top_names(
+    num_candidates: int,
+    year: int,
+    year_name_counts: dict[int, dict[str, int]],
+    year_total_counts: dict[int, int],
+) -> None:
+
+    # Candidate names
+    names = []
+    for idx, name in enumerate(year_name_counts[year].keys()):
+        if idx >= num_candidates:
+            break
+        names.append(name)
+    min_frequency = year_name_counts[year][names[-1]] / year_total_counts[year]
+
+    # Filter function
+    def keep_name(name) -> bool:
+        if not is_name_frequency_above_threshold(
+            name,
+            min_frequency,
+            year - 50 + 1,
+            year,
+            year_name_counts,
+            year_total_counts,
+        ):
+            # Name has not maintained popularity for 50 years
+            return False
+        if is_name_frequency_falling(
+            name,
+            year - 10 + 1,
+            year,
+            year_name_counts,
+            year_total_counts,
+        ):
+            # Name frequency is falling within 10-year timeframe
+            return False
+        if is_name_frequency_falling(
+            name,
+            year - 20 + 1,
+            year,
+            year_name_counts,
+            year_total_counts,
+        ):
+            # Name frequency is falling within 20-year timeframe
+            return False
+        if is_name_frequency_falling(
+            name,
+            year - 50 + 1,
+            year,
+            year_name_counts,
+            year_total_counts,
+        ):
+            # Name frequency is falling within 50-year timeframe
+            return False
+        return True
+
+    # Apply filter
+    names = filter(keep_name, names)
+
+    # Print filtered names and frequencies
+    print("Filtered name frequencies")
+    print("-------------------------")
+    total_count = year_total_counts[year]
+    for name in names:
+        print(f"{name}: {year_name_counts[year][name] / total_count}")
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("--gender", default="M", type=str)
     parser.add_argument("--states", nargs="+")
-    parser.add_argument("--top", default=None, type=int, help="Show top names")
     parser.add_argument("--name", default=None, type=str, help="Show trends for a name")
+    parser.add_argument("--top", default=None, type=int, help="Show top names")
+    parser.add_argument("--filter-top", default=None, type=int, help="Show filtered top names")
     args = parser.parse_args()
     print("\n".join(f"{key}: {val}" for key, val in vars(args).items()))
     print()
@@ -199,15 +291,24 @@ def main() -> None:
     year_min = min(year_total_counts.keys())
     year_max = max(year_total_counts.keys())
 
-    # Show top names
-    if args.top is not None:
-        show_top_names(args.top, year_max, year_name_counts, year_total_counts)
-
     # Plot trends for a name
     if args.name is not None:
         name = args.name.lower()
         plot_trends_for_name(name, year_name_counts, name_year_counts, year_total_counts)
         plt.show()
+
+    # Show top names
+    if args.top is not None:
+        show_top_names(args.top, year_max, year_name_counts, year_total_counts)
+
+    # Show filtered top names
+    if args.filter_top is not None:
+        show_filtered_top_names(
+            args.filter_top,
+            year_max,
+            year_name_counts,
+            year_total_counts,
+        )
 
 
 if __name__ == "__main__":
