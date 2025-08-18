@@ -94,16 +94,9 @@ def plot_trends_for_name(
     for year in range(year_min, year_max+1):
         if counts[year] > 0:
             ranks[year] = next(
-                idx for idx, n in enumerate(year_name_counts[year].keys())
+                idx + 1 for idx, n in enumerate(year_name_counts[year].keys())
                 if n == name
             )
-
-    # Print statistics
-    print(f"{year_max} statistics for {name}")
-    print(f"Total count: {counts[year_max]}")
-    print(f"Frequency: {frequencies[year_max]}")
-    if year_max in ranks:
-        print(f"Rank: {ranks[year_max]}")
 
     # Plot
     fig, (ax1, ax2, ax3) = plt.subplots(3, 1)
@@ -254,6 +247,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("--gender", default="M", type=str)
     parser.add_argument("--states", nargs="+")
+    parser.add_argument("--year", default=None, type=int)
     parser.add_argument("--name", default=None, type=str, help="Show trends for a name")
     parser.add_argument("--top", default=None, type=int, help="Show top names")
     parser.add_argument("--filter-top", default=None, type=int, help="Show filtered top names")
@@ -290,22 +284,40 @@ def main() -> None:
     }
     year_min = min(year_total_counts.keys())
     year_max = max(year_total_counts.keys())
+    target_year = year_max if args.year is None else args.year
 
     # Plot trends for a name
     if args.name is not None:
         name = args.name.lower()
+
+        # Print statistics
+        year = target_year
+        count = year_name_counts[year].get(name, 0)
+        frequency = count / year_total_counts[year]
+        rank = -1
+        if name in year_name_counts[year]:
+            rank = next(
+                idx + 1 for idx, n in enumerate(year_name_counts[year].keys())
+                if n == name
+            )
+        print(f"{year} statistics for {name}")
+        print(f"Total count: {count}")
+        print(f"Frequency: {frequency}")
+        print(f"Rank: {rank}")
+
+        # Plot trends
         plot_trends_for_name(name, year_name_counts, name_year_counts, year_total_counts)
         plt.show()
 
     # Show top names
     if args.top is not None:
-        show_top_names(args.top, year_max, year_name_counts, year_total_counts)
+        show_top_names(args.top, target_year, year_name_counts, year_total_counts)
 
     # Show filtered top names
     if args.filter_top is not None:
         show_filtered_top_names(
             args.filter_top,
-            year_max,
+            target_year,
             year_name_counts,
             year_total_counts,
         )
